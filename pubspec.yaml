@@ -1,0 +1,43 @@
+name: tumbuh_app
+description: "A new Flutter project."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.4
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  google_fonts: ^6.2.1
+  flutter_svg: ^2.0.10
+  font_awesome_flutter: ^10.7.0
+  mobile_scanner: ^5.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: "^0.13.1"
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  # macos: true
+  # windows: true
+  # web:
+  #   generate: true
+  #   image_path: "assets/icons/app_icon.png"
+  #   background_color: "#ffffff"
+  #   theme_color: "#ffffff"
+  image_path: "assets/icons/app_icon.png"
+  image_path_ios: "assets/icons/app_icon.png"
+  adaptive_icon_background: "#ffffff"
+  adaptive_icon_foreground: "assets/icons/app_icon.png"
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/icons/
