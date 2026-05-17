@@ -27,7 +27,36 @@ void main() {
     expect(find.text('Kentang'), findsOneWidget);
     expect(find.text('Tempe'), findsOneWidget);
     expect(find.text('Jagung'), findsOneWidget);
-    expect(find.text('Terong Ungu'), findsOneWidget);
+    expect(find.text('Terong\nUngu'), findsOneWidget);
     expect(find.text('Bahan belum dikenali'), findsOneWidget);
+  });
+
+  testWidgets('ScanPage mengenali bahan yang didukung dan menampilkan snackbar untuk bahan lain', (
+    WidgetTester tester,
+  ) async {
+    late ValueChanged<String> onScanValue;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ScanPage(
+          scannerBuilder: (callback) {
+            onScanValue = callback;
+            return const SizedBox.expand();
+          },
+        ),
+      ),
+    );
+
+    onScanValue('tempe');
+    await tester.pump();
+
+    expect(find.text('Tempe Terdeteksi'), findsOneWidget);
+    expect(find.text('Bahan berhasil dikenali'), findsOneWidget);
+
+    onScanValue('ikan');
+    await tester.pump();
+
+    expect(find.text('Bahan belum dikenali'), findsOneWidget);
+    expect(find.text('Bahan belum bisa terdeteksi'), findsOneWidget);
   });
 }

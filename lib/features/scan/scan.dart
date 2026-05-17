@@ -59,9 +59,10 @@ String? matchSupportedScanIngredient(String rawValue) {
 }
 
 class ScanPage extends StatefulWidget {
-  const ScanPage({super.key, this.scanner});
+  const ScanPage({super.key, this.scanner, this.scannerBuilder});
 
   final Widget? scanner;
+  final Widget Function(ValueChanged<String> onScanValue)? scannerBuilder;
 
   @override
   State<ScanPage> createState() => _ScanPageState();
@@ -108,14 +109,18 @@ class _ScanPageState extends State<ScanPage> {
   }
 
   void _handleBarcodeCapture(BarcodeCapture capture) {
-    final rawValue = _extractFirstBarcodeValue(capture);
+    _handleScanValue(_extractFirstBarcodeValue(capture));
+  }
 
-    if (rawValue.isEmpty || rawValue == _lastScanValue) {
+  void _handleScanValue(String rawValue) {
+    final trimmedValue = rawValue.trim();
+
+    if (trimmedValue.isEmpty || trimmedValue == _lastScanValue) {
       return;
     }
 
-    _lastScanValue = rawValue;
-    final ingredient = matchSupportedScanIngredient(rawValue);
+    _lastScanValue = trimmedValue;
+    final ingredient = matchSupportedScanIngredient(trimmedValue);
 
     if (ingredient != null) {
       setState(() {
@@ -142,7 +147,7 @@ class _ScanPageState extends State<ScanPage> {
         .split(' ')
         .where((part) => part.isNotEmpty)
         .map(
-          (part) => part.isEmpty ? part : '${part[0].toUpperCase()}${part.substring(1)}',
+          (part) => '${part[0].toUpperCase()}${part.substring(1)}',
         )
         .join(' ');
   }
@@ -154,7 +159,9 @@ class _ScanPageState extends State<ScanPage> {
       body: Stack(
         children: [
           // 1. KAMERA DASAR
-          widget.scanner ?? MobileScanner(onDetect: _handleBarcodeCapture),
+          widget.scannerBuilder?.call(_handleScanValue) ??
+              widget.scanner ??
+              MobileScanner(onDetect: _handleBarcodeCapture),
 
           // 2. LAYER OVERLAY & FRAME (Disatukan agar Presisi)
           Stack(
@@ -363,7 +370,7 @@ class _ScanPageState extends State<ScanPage> {
         border: Border.all(color: color.withOpacity(0.2)),
       ),
       child: Text(
-        label,
+        label.replaceFirst(' ', '\n'),
         textAlign: TextAlign.center,
         style: TextStyle(
           color: color,
