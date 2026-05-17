@@ -45,5 +45,9 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Tumbuh membutuhkan akses kamera untuk memindai makanan.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Tumbuh membutuhkan akses galeri untuk memilih gambar bahan pangan.</string>
 </dict>
 </plist>

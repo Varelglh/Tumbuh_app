@@ -1,408 +1,148 @@
+import 'dart:convert';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:tumbuh_app/app/theme.dart';
+import 'package:tumbuh_app/core/services/recipe_likes_storage.dart';
+import 'package:tumbuh_app/core/utils/app_notify.dart';
+import 'package:tumbuh_app/core/services/recipes_api.dart';
+import 'package:url_launcher/url_launcher.dart';
 
-class DetailResepPage extends StatelessWidget {
-  const DetailResepPage({super.key});
+part 'detail/detailresep_types.dart';
+part 'detail/detailresep_helpers.dart';
+part 'detail/detailresep_hero_section.dart';
+part 'detail/detailresep_nutrition_section.dart';
+part 'detail/detailresep_ingredients_tools_section.dart';
+part 'detail/detailresep_cooking_section.dart';
+
+class DetailResepPage extends StatefulWidget {
+  final Map<String, dynamic>? recipe;
+  final bool initiallyLiked;
+  const DetailResepPage({super.key, this.recipe, this.initiallyLiked = false});
+
+  @override
+  State<DetailResepPage> createState() => _DetailResepPageState();
+}
+
+class _DetailResepPageState extends State<DetailResepPage> {
+  bool _liked = false;
+  bool _busy = false;
+
+  Map<String, dynamic> get _r => widget.recipe ?? const <String, dynamic>{};
+
+  @override
+  void initState() {
+    super.initState();
+    _liked = widget.initiallyLiked;
+    _hydrateLiked();
+  }
+
+  Future<void> _hydrateLiked() async {
+    final String id = (_r['id'] ?? '').toString().trim();
+    if (id.isEmpty) return;
+
+    final storage = RecipeLikesStorage();
+
+    // Local cache wins (keeps the button stable when reopening).
+    final bool? cached = await storage.getLiked(id);
+    if (!mounted) return;
+    if (cached != null) {
+      if (cached != _liked) {
+        setState(() {
+          _liked = cached;
+        });
+      }
+      return;
+    }
+
+    // If we don't have cache yet, try server liked list (best effort).
+    try {
+      final likedItems = await RecipesApi().fetchLikedRecipesMe();
+      final bool isLiked = likedItems.any(
+        (e) => (e['id'] ?? '').toString().trim() == id,
+      );
+      await storage.setLiked(id, isLiked);
+      if (!mounted) return;
+      if (isLiked != _liked) {
+        setState(() {
+          _liked = isLiked;
+        });
+      }
+    } catch (_) {
+      // Ignore: not logged in / offline / endpoint failed.
+    }
+  }
+
+  Future<void> _toggleLike() async {
+    if (_busy) return;
+    final String id = (_r['id'] ?? '').toString().trim();
+    if (id.isEmpty) {
+      AppNotify.show(
+        context,
+        'ID resep tidak ditemukan',
+        type: AppNotifyType.error,
+      );
+      return;
+    }
+
+    setState(() {
+      _busy = true;
+    });
+
+    try {
+      // Backend uses a single toggle endpoint: calling like twice will unlike.
+      final bool wasLiked = _liked;
+      await RecipesApi().likeRecipe(id);
+      if (!mounted) return;
+
+      setState(() {
+        _liked = !wasLiked;
+      });
+
+      await RecipeLikesStorage().setLiked(id, _liked);
+      if (!mounted) return;
+
+      AppNotify.show(
+        context,
+        wasLiked ? 'Batal menyukai resep' : 'Resep berhasil disukai',
+        type: wasLiked ? AppNotifyType.info : AppNotifyType.success,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      AppNotify.show(
+        context,
+        _liked ? 'Gagal batal menyukai resep' : 'Gagal menyukai resep',
+        type: AppNotifyType.error,
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F0),
+      backgroundColor: AppTheme.cream,
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildHeroImageSection(context),
-            _buildNutritionInfoSection(),
+            _HeroImageSection(
+              r: _r,
+              isLiked: _liked,
+              isBusy: _busy,
+              onLike: _toggleLike,
+            ),
+            _NutritionInfoSection(r: _r),
             const SizedBox(height: 16),
-            _buildBahanAlatSection(),
+            _IngredientsToolsSection(r: _r),
             const SizedBox(height: 16),
-            _buildCookingStepsSection(),
+            _CookingStepsSection(r: _r),
             const SizedBox(height: 100),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeroImageSection(BuildContext context) {
-    return Stack(
-      children: [
-        // Main Image
-        Container(
-          height: 320,
-          width: double.infinity,
-          decoration: const BoxDecoration(
-            image: DecorationImage(
-              image: NetworkImage(
-                'https://images.unsplash.com/photo-1598103442097-8b74394b95c6?auto=format&fit=crop&w=1200&q=80',
-              ),
-              fit: BoxFit.cover,
-            ),
-          ),
-        ),
-
-        // Gradient Overlay
-        Container(
-          height: 320,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                Colors.black.withOpacity(0.3),
-                Colors.black.withOpacity(0.6),
-              ],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-            ),
-          ),
-        ),
-
-        // Back Button
-        Positioned(
-          top: 44,
-          left: 16,
-          child: GestureDetector(
-            onTap: () => Navigator.of(context).pop(),
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.9),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.arrow_back,
-                color: Colors.black87,
-                size: 24,
-              ),
-            ),
-          ),
-        ),
-
-        // Recipe Info Overlay
-        Positioned(
-          left: 16,
-          right: 16,
-          bottom: 16,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      'Ayam Bakar Madu',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: const BoxDecoration(
-                      color: Colors.red,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.favorite,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Daging Ayam',
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.9),
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.4),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.access_time, color: Colors.white, size: 16),
-                        SizedBox(width: 6),
-                        Text(
-                          '30 Menit',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        SizedBox(width: 8),
-                        Text(
-                          '|',
-                          style: TextStyle(color: Colors.white54),
-                        ),
-                        SizedBox(width: 8),
-                        Text(
-                          '180 kal',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  _buildBadge('Vitamin', Colors.yellow.shade700),
-                  const SizedBox(width: 6),
-                  _buildBadge('Protein Tinggi', Colors.yellow.shade700),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildBadge(String label, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNutritionInfoSection() {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          _buildNutritionItem(
-            Icons.local_fire_department,
-            Colors.orange,
-            'Kalori\nRendah',
-          ),
-          Container(width: 1, height: 40, color: Colors.grey.shade300),
-          _buildNutritionItem(
-            Icons.favorite,
-            Colors.red,
-            'Vitamin\nTinggi',
-          ),
-          Container(width: 1, height: 40, color: Colors.grey.shade300),
-          _buildNutritionItem(
-            Icons.restaurant,
-            Colors.brown,
-            'Serat\nTinggi',
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNutritionItem(IconData icon, Color iconColor, String label) {
-    return Column(
-      children: [
-        Icon(icon, color: iconColor, size: 28),
-        const SizedBox(height: 6),
-        Text(
-          label,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: Colors.black87,
-            height: 1.3,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildBahanAlatSection() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: _buildIngredientCard(
-              'Bahan',
-              ['Buah Buahan', 'Sayur Sayuran', 'Wajan', 'Panci'],
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _buildIngredientCard(
-              'Alat',
-              ['Buah Buahan', 'Sayur Sayuran', 'Kompor', 'Pisau'],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildIngredientCard(String title, List<String> items) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 12),
-          ...items.map((item) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 6,
-                      height: 6,
-                      decoration: const BoxDecoration(
-                        color: AppTheme.brandGreen,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppTheme.brandGreen.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          item,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: Colors.black87,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              )),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCookingStepsSection() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 10,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Cara Memasak Resep',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: Colors.black87,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildVideoThumbnail(),
-                _buildVideoThumbnail(),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildVideoThumbnail() {
-    return Container(
-      width: 145,
-      height: 100,
-      decoration: BoxDecoration(
-        color: Colors.grey.shade300,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Center(
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.9),
-            shape: BoxShape.circle,
-          ),
-          child: const Icon(
-            Icons.play_arrow,
-            color: Colors.black87,
-            size: 28,
-          ),
         ),
       ),
     );

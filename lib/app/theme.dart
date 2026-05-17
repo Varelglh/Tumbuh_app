@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 class AppTheme {
   static const Color brandGreen = Color(0xFF6B8E23);
   static const Color brandGreenDark = Color(0xFF55711B);
-  static const Color cream = Color(0xFFF4F1E8);
+  // Page background (samakan dengan background halaman resep)
+  static const Color cream = Color(0xFFF6F6F1);
   static const Color card = Color(0xFFFFFFFF);
   static const Color ink = Color(0xFF1F2A1F);
   static const Color muted = Color(0xFF6B756B);

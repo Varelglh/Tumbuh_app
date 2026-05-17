@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:tumbuh_app/app/theme.dart';
+import 'package:tumbuh_app/core/services/auth_storage.dart';
+import 'package:tumbuh_app/core/utils/auth_ui.dart';
+import 'package:tumbuh_app/core/widgets/tumbuh_header.dart';
+import 'package:tumbuh_app/core/widgets/tumbuh_search_field.dart';
 
 class EdukasiPage extends StatefulWidget {
   const EdukasiPage({super.key});
@@ -60,61 +64,29 @@ class _EdukasiPageState extends State<EdukasiPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Header
-            Row(
-              children: [
-                const CircleAvatar(
-                  radius: 26,
-                  backgroundColor: Color(0xFFE8E3D9),
-                  child: Icon(
-                    Icons.person,
-                    color: AppTheme.brandGreenDark,
-                    size: 26,
+            FutureBuilder<String>(
+              future: AuthStorage().getDisplayName(),
+              builder: (context, snapshot) {
+                final name = snapshot.data ?? 'Pengguna';
+                return TumbuhHeader(
+                  title: 'Halo, $name',
+                  subtitle: 'Mau belajar apa hari ini...',
+                  onProfileTap: () => showLogoutDialog(context),
+                  trailing: const Icon(
+                    Icons.wb_sunny_outlined,
+                    color: Colors.amber,
+                    size: 28,
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
-                      Text(
-                        'Halo, Sari',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 18,
-                          color: AppTheme.brandGreen,
-                        ),
-                      ),
-                      SizedBox(height: 2),
-                      Text(
-                        'Mau belajar apa hari ini...',
-                        style: TextStyle(fontSize: 13),
-                      ),
-                    ],
-                  ),
-                ),
-                const Icon(
-                  Icons.wb_sunny_outlined,
-                  color: Colors.amber,
-                  size: 30,
-                ),
-              ],
+                );
+              },
             ),
             const SizedBox(height: 14),
 
             // Search
-            TextField(
+            TumbuhSearchField(
+              hintText: 'Cari.....',
               onChanged: (v) => setState(() => _query = v),
-              decoration: InputDecoration(
-                hintText: 'Cari.....',
-                prefixIcon: const Icon(Icons.search),
-                filled: true,
-                fillColor: Colors.white,
-                contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(28),
-                  borderSide: BorderSide.none,
-                ),
-              ),
+              borderRadius: BorderRadius.circular(28),
             ),
             const SizedBox(height: 12),
 
@@ -137,6 +109,7 @@ class _EdukasiPageState extends State<EdukasiPage> {
                             ? Colors.white
                             : AppTheme.brandGreenDark,
                         fontWeight: FontWeight.w700,
+                        fontSize: 13,
                       ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20),
@@ -161,7 +134,7 @@ class _EdukasiPageState extends State<EdukasiPage> {
                     ),
                     elevation: 2,
                     child: InkWell(
-                      onTap: () {}, // TODO: open detail
+                      onTap: () {}, // Open detail
                       borderRadius: BorderRadius.circular(14),
                       child: Padding(
                         padding: const EdgeInsets.all(12),
