@@ -2,8 +2,66 @@ import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:tumbuh_app/app/theme.dart';
 
+const List<String> supportedScanIngredients = <String>[
+  'ayam',
+  'telur',
+  'kentang',
+  'tempe',
+  'jagung',
+  'terong ungu',
+];
+
+const Map<String, List<String>> _scanIngredientAliases = <String, List<String>>{
+  'ayam': <String>['ayam', 'chicken'],
+  'telur': <String>['telur', 'egg', 'eggs'],
+  'kentang': <String>['kentang', 'potato', 'potatoes'],
+  'tempe': <String>['tempe', 'tempeh'],
+  'jagung': <String>['jagung', 'corn', 'maize'],
+  'terong ungu': <String>[
+    'terong ungu',
+    'terong_ungu',
+    'terong-ungu',
+    'eggplant',
+    'purple eggplant',
+    'purple_eggplant',
+    'aubergine',
+  ],
+};
+
+String? matchSupportedScanIngredient(String rawValue) {
+  final normalizedValue = rawValue
+      .trim()
+      .toLowerCase()
+      .replaceAll(RegExp(r'[^a-z0-9]+'), ' ')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
+
+  if (normalizedValue.isEmpty) {
+    return null;
+  }
+
+  for (final entry in _scanIngredientAliases.entries) {
+    for (final alias in entry.value) {
+      final normalizedAlias = alias
+          .trim()
+          .toLowerCase()
+          .replaceAll(RegExp(r'[^a-z0-9]+'), ' ')
+          .replaceAll(RegExp(r'\s+'), ' ')
+          .trim();
+
+      if (normalizedAlias == normalizedValue) {
+        return entry.key;
+      }
+    }
+  }
+
+  return null;
+}
+
 class ScanPage extends StatefulWidget {
-  const ScanPage({super.key});
+  const ScanPage({super.key, this.scanner});
+
+  final Widget? scanner;
 
   @override
   State<ScanPage> createState() => _ScanPageState();
@@ -13,6 +71,70 @@ class _ScanPageState extends State<ScanPage> {
   // Gunakan variabel ini agar semua elemen merujuk pada ukuran yang sama
   final double scanBoxSize = 280.0;
   final double verticalOffset = -60.0; // Menggeser titik fokus sedikit ke atas tengah
+  String? _detectedIngredient;
+  String? _lastScanValue;
+
+  bool get _isIngredientRecognized => _detectedIngredient != null;
+
+  String get _scanTooltipText =>
+      _isIngredientRecognized ? '${_detectedIngredient!.toUpperCase()} terdeteksi' : 'Bahan belum dikenali';
+
+  String get _scanTitleText =>
+      _isIngredientRecognized ? '${_capitalizeIngredient(_detectedIngredient!)} Terdeteksi' : 'Bahan belum dikenali';
+
+  String get _scanSubtitleText =>
+      _isIngredientRecognized ? 'Bahan berhasil dikenali' : 'Scan hanya mendukung bahan tertentu';
+
+  String get _scanSummaryText => _isIngredientRecognized
+      ? '${_capitalizeIngredient(_detectedIngredient!)} berhasil dikenali. Informasi gizi lengkap untuk bahan ini akan tersedia pada pembaruan berikutnya.'
+      : 'Coba arahkan kamera ke ayam, telur, kentang, tempe, jagung, atau terong ungu.';
+
+  void _handleBarcodeCapture(BarcodeCapture capture) {
+    final rawValue = capture.barcodes
+        .map((barcode) => barcode.rawValue)
+        .whereType<String>()
+        .map((value) => value.trim())
+        .firstWhere(
+          (value) => value.isNotEmpty,
+          orElse: () => '',
+        );
+
+    if (rawValue.isEmpty || rawValue == _lastScanValue) {
+      return;
+    }
+
+    _lastScanValue = rawValue;
+    final ingredient = matchSupportedScanIngredient(rawValue);
+
+    if (ingredient != null) {
+      setState(() {
+        _detectedIngredient = ingredient;
+      });
+      return;
+    }
+
+    setState(() {
+      _detectedIngredient = null;
+    });
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text('Bahan belum bisa terdeteksi'),
+        ),
+      );
+  }
+
+  String _capitalizeIngredient(String value) {
+    return value
+        .split(' ')
+        .where((part) => part.isNotEmpty)
+        .map(
+          (part) => '${part[0].toUpperCase()}${part.substring(1)}',
+        )
+        .join(' ');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -21,7 +143,7 @@ class _ScanPageState extends State<ScanPage> {
       body: Stack(
         children: [
           // 1. KAMERA DASAR
-          const MobileScanner(),
+          widget.scanner ?? MobileScanner(onDetect: _handleBarcodeCapture),
 
           // 2. LAYER OVERLAY & FRAME (Disatukan agar Presisi)
           Stack(
@@ -71,9 +193,9 @@ class _ScanPageState extends State<ScanPage> {
                           BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 10)
                         ],
                       ),
-                      child: const Text(
-                        'IKAN cocok 100%',
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                      child: Text(
+                        _scanTooltipText,
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
                       ),
                     ),
                     const SizedBox(height: 15),
@@ -148,36 +270,43 @@ class _ScanPageState extends State<ScanPage> {
                       ),
                     ),
                     const SizedBox(height: 25),
-                    const Text(
-                      'IKAN Terdeteksi',
+                    Text(
+                      _scanTitleText,
                       style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Color(0xFF1A1A1A)),
                     ),
-                    const Text('Geser ke atas untuk info nutrisi lengkap', 
-                        style: TextStyle(color: Colors.grey, fontSize: 13)),
+                    Text(
+                      _scanSubtitleText,
+                      style: const TextStyle(color: Colors.grey, fontSize: 13),
+                    ),
                     
                     const SizedBox(height: 25),
-                    // Chips
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        _buildModernChip('Kalori Rendah', AppTheme.brandGreen),
-                        _buildModernChip('Protein Tinggi', Colors.redAccent),
-                        _buildModernChip('Vitamin Tinggi', Colors.orange),
-                      ],
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Bahan yang bisa di-scan',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.brandGreenDark,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: supportedScanIngredients
+                          .map((ingredient) => _buildModernChip(_capitalizeIngredient(ingredient), AppTheme.brandGreen))
+                          .toList(),
                     ),
                     
                     const SizedBox(height: 30),
-                    // Progress Bars
-                    _buildLabelBar('Kandungan Lemak', 0.4, '10 G', AppTheme.brandGreen),
-                    _buildLabelBar('Kandungan Protein', 0.8, '80%', Colors.redAccent),
-                    _buildLabelBar('Kalori Total', 0.6, '15 Kal', Colors.orange),
-                    
-                    const SizedBox(height: 25),
                     // Button
                     ElevatedButton(
-                      onPressed: () {},
+                      onPressed: _isIngredientRecognized ? () {} : null,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.brandGreen,
+                        disabledBackgroundColor: Colors.grey[300],
                         minimumSize: const Size(double.infinity, 56),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         elevation: 0,
@@ -187,10 +316,10 @@ class _ScanPageState extends State<ScanPage> {
                     ),
                     
                     const SizedBox(height: 30),
-                    const Text("Ringkasan Kesehatan", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    const Text("Ringkasan Scan", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                     const SizedBox(height: 10),
-                    const Text(
-                      "Ikan mengandung nutrisi penting seperti omega-3, protein, dan vitamin D. Sangat baik untuk mendukung perkembangan kognitif dan menjaga daya tahan tubuh anak.",
+                    Text(
+                      _scanSummaryText,
                       style: TextStyle(color: Colors.black87, height: 1.5),
                     ),
                     const SizedBox(height: 100), // Spasi extra agar bisa di-scroll mentok
@@ -214,35 +343,8 @@ class _ScanPageState extends State<ScanPage> {
         borderRadius: BorderRadius.circular(15),
         border: Border.all(color: color.withOpacity(0.2)),
       ),
-      child: Text(label.replaceFirst(' ', '\n'), textAlign: TextAlign.center,
+      child: Text(label, textAlign: TextAlign.center,
         style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w800)),
-    );
-  }
-
-  Widget _buildLabelBar(String label, double progress, String value, Color color) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 18),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black54)),
-              Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: color)),
-            ],
-          ),
-          const SizedBox(height: 8),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: LinearProgressIndicator(
-              value: progress,
-              minHeight: 10,
-              backgroundColor: Colors.grey[100],
-              valueColor: AlwaysStoppedAnimation<Color>(color),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
