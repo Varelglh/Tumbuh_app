@@ -142,13 +142,19 @@ class _ScanPageState extends State<ScanPage> {
       );
   }
 
+  String _capitalizeWord(String value) {
+    if (value.isEmpty) {
+      return value;
+    }
+
+    return '${value[0].toUpperCase()}${value.substring(1)}';
+  }
+
   String _capitalizeIngredient(String value) {
     return value
         .split(' ')
         .where((part) => part.isNotEmpty)
-        .map(
-          (part) => '${part[0].toUpperCase()}${part.substring(1)}',
-        )
+        .map(_capitalizeWord)
         .join(' ');
   }
 
