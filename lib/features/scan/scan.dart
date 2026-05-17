@@ -76,28 +76,39 @@ class _ScanPageState extends State<ScanPage> {
 
   bool get _isIngredientRecognized => _detectedIngredient != null;
 
-  String get _scanTooltipText =>
-      _isIngredientRecognized ? '${_detectedIngredient!.toUpperCase()} terdeteksi' : 'Bahan belum dikenali';
+  String get _scanTooltipText {
+    final ingredient = _detectedIngredient;
+    return ingredient != null ? '${ingredient.toUpperCase()} terdeteksi' : 'Scan bahan yang didukung';
+  }
 
-  String get _scanTitleText =>
-      _isIngredientRecognized ? '${_capitalizeIngredient(_detectedIngredient!)} Terdeteksi' : 'Bahan belum dikenali';
+  String get _scanTitleText {
+    final ingredient = _detectedIngredient;
+    return ingredient != null ? '${_capitalizeIngredient(ingredient)} Terdeteksi' : 'Bahan belum dikenali';
+  }
 
   String get _scanSubtitleText =>
       _isIngredientRecognized ? 'Bahan berhasil dikenali' : 'Scan hanya mendukung bahan tertentu';
 
-  String get _scanSummaryText => _isIngredientRecognized
-      ? '${_capitalizeIngredient(_detectedIngredient!)} berhasil dikenali. Informasi gizi lengkap untuk bahan ini akan tersedia pada pembaruan berikutnya.'
-      : 'Coba arahkan kamera ke ayam, telur, kentang, tempe, jagung, atau terong ungu.';
+  String get _scanSummaryText {
+    final ingredient = _detectedIngredient;
+    return ingredient != null
+        ? '${_capitalizeIngredient(ingredient)} berhasil dikenali. Informasi gizi lengkap untuk bahan ini akan tersedia pada pembaruan berikutnya.'
+        : 'Coba arahkan kamera ke ayam, telur, kentang, tempe, jagung, atau terong ungu.';
+  }
+
+  String _extractFirstBarcodeValue(BarcodeCapture capture) {
+    for (final barcode in capture.barcodes) {
+      final value = barcode.rawValue?.trim() ?? '';
+      if (value.isNotEmpty) {
+        return value;
+      }
+    }
+
+    return '';
+  }
 
   void _handleBarcodeCapture(BarcodeCapture capture) {
-    final rawValue = capture.barcodes
-        .map((barcode) => barcode.rawValue)
-        .whereType<String>()
-        .map((value) => value.trim())
-        .firstWhere(
-          (value) => value.isNotEmpty,
-          orElse: () => '',
-        );
+    final rawValue = _extractFirstBarcodeValue(capture);
 
     if (rawValue.isEmpty || rawValue == _lastScanValue) {
       return;
@@ -131,7 +142,7 @@ class _ScanPageState extends State<ScanPage> {
         .split(' ')
         .where((part) => part.isNotEmpty)
         .map(
-          (part) => '${part[0].toUpperCase()}${part.substring(1)}',
+          (part) => part.isEmpty ? part : '${part[0].toUpperCase()}${part.substring(1)}',
         )
         .join(' ');
   }

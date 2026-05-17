@@ -28,6 +28,6 @@ void main() {
     expect(find.text('Tempe'), findsOneWidget);
     expect(find.text('Jagung'), findsOneWidget);
     expect(find.text('Terong Ungu'), findsOneWidget);
-    expect(find.text('Bahan belum dikenali'), findsWidgets);
+    expect(find.text('Bahan belum dikenali'), findsOneWidget);
   });
 }
