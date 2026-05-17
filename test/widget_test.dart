@@ -1,29 +1,63 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tumbuh_app/app/app.dart';
+import 'package:tumbuh_app/features/scan/scan.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const TumbuhApp());
+  test('matchSupportedScanIngredient hanya menerima bahan yang didukung', () {
+    expect(matchSupportedScanIngredient('ayam'), 'ayam');
+    expect(matchSupportedScanIngredient('Egg'), 'telur');
+    expect(matchSupportedScanIngredient('purple_eggplant'), 'terong ungu');
+    expect(matchSupportedScanIngredient('ikan'), isNull);
+    expect(matchSupportedScanIngredient(''), isNull);
+  });
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+  testWidgets('ScanPage menampilkan note bahan scan dan status awal belum dikenali', (WidgetTester tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: ScanPage(
+          scanner: SizedBox.expand(),
+        ),
+      ),
+    );
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
+    expect(find.text('Pindai Makanan'), findsOneWidget);
+    expect(find.text('Bahan yang bisa di-scan'), findsOneWidget);
+    expect(find.text('Ayam'), findsOneWidget);
+    expect(find.text('Telur'), findsOneWidget);
+    expect(find.text('Kentang'), findsOneWidget);
+    expect(find.text('Tempe'), findsOneWidget);
+    expect(find.text('Jagung'), findsOneWidget);
+    expect(find.textContaining('Terong'), findsOneWidget);
+    expect(find.textContaining('Ungu'), findsOneWidget);
+    expect(find.text('Bahan belum dikenali'), findsOneWidget);
+  });
+
+  testWidgets('ScanPage mengenali bahan yang didukung dan menampilkan snackbar untuk bahan lain', (
+    WidgetTester tester,
+  ) async {
+    late ValueChanged<String> onScanValue;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ScanPage(
+          scannerBuilder: (callback) {
+            onScanValue = callback;
+            return const SizedBox.expand();
+          },
+        ),
+      ),
+    );
+
+    onScanValue('tempe');
     await tester.pump();
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(find.text('Tempe Terdeteksi'), findsOneWidget);
+    expect(find.text('Bahan berhasil dikenali'), findsOneWidget);
+
+    onScanValue('ikan');
+    await tester.pump();
+
+    expect(find.text('Bahan belum dikenali'), findsOneWidget);
+    expect(find.text('Bahan belum bisa terdeteksi'), findsOneWidget);
   });
 }
