@@ -77,7 +77,7 @@ class _ScanPageState extends State<ScanPage> {
 
   bool get _isIngredientRecognized => _detectedIngredient != null;
 
-  String get _scanTooltipText {
+  String get _scanStatusText {
     final ingredient = _detectedIngredient;
     return ingredient != null ? '${ingredient.toUpperCase()} terdeteksi' : 'Scan bahan yang didukung';
   }
@@ -147,7 +147,7 @@ class _ScanPageState extends State<ScanPage> {
       return value;
     }
 
-    return '${value[0].toUpperCase()}${value.substring(1)}';
+    return '${value[0].toUpperCase()}${value.substring(1).toLowerCase()}';
   }
 
   String _capitalizeIngredient(String value) {
@@ -218,7 +218,7 @@ class _ScanPageState extends State<ScanPage> {
                         ],
                       ),
                       child: Text(
-                        _scanTooltipText,
+                        _scanStatusText,
                         style: TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
