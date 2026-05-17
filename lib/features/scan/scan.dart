@@ -195,7 +195,11 @@ class _ScanPageState extends State<ScanPage> {
                       ),
                       child: Text(
                         _scanTooltipText,
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 15),
@@ -272,7 +276,11 @@ class _ScanPageState extends State<ScanPage> {
                     const SizedBox(height: 25),
                     Text(
                       _scanTitleText,
-                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Color(0xFF1A1A1A)),
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFF1A1A1A),
+                      ),
                     ),
                     Text(
                       _scanSubtitleText,
@@ -320,7 +328,7 @@ class _ScanPageState extends State<ScanPage> {
                     const SizedBox(height: 10),
                     Text(
                       _scanSummaryText,
-                      style: TextStyle(color: Colors.black87, height: 1.5),
+                      style: const TextStyle(color: Colors.black87, height: 1.5),
                     ),
                     const SizedBox(height: 100), // Spasi extra agar bisa di-scroll mentok
                   ],
@@ -343,8 +351,15 @@ class _ScanPageState extends State<ScanPage> {
         borderRadius: BorderRadius.circular(15),
         border: Border.all(color: color.withOpacity(0.2)),
       ),
-      child: Text(label, textAlign: TextAlign.center,
-        style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w800)),
+      child: Text(
+        label,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
     );
   }
 }
